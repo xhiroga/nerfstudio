@@ -161,9 +161,9 @@ The following will train a _nerfacto_ model, our recommended model for real worl
 
 ```bash
 # Download some test data:
-ns-download-data nerfstudio --capture-name=poster
+uv run ns-download-data nerfstudio --capture-name=poster
 # Train model
-ns-train nerfacto --data data/nerfstudio/poster
+uv run ns-train nerfacto --data data/nerfstudio/poster
 ```
 
 If everything works, you should see training progress like the following:
@@ -183,7 +183,7 @@ Navigating to the link at the end of the terminal will load the webviewer. If yo
 It is possible to load a pretrained model by running
 
 ```bash
-ns-train nerfacto --data data/nerfstudio/poster --load-dir {outputs/.../nerfstudio_models}
+uv run ns-train nerfacto --data data/nerfstudio/poster --load-dir {outputs/.../nerfstudio_models}
 ```
 
 ## Visualize existing run
@@ -191,7 +191,7 @@ ns-train nerfacto --data data/nerfstudio/poster --load-dir {outputs/.../nerfstud
 Given a pretrained model checkpoint, you can start the viewer by running
 
 ```bash
-ns-viewer --load-config {outputs/.../config.yml}
+uv run ns-viewer --load-config {outputs/.../config.yml}
 ```
 
 ## 3. Exporting Results
@@ -205,7 +205,7 @@ First we must create a path for the camera to follow. This can be done in the vi
 Other video export options are available, learn more by running
 
 ```bash
-ns-render --help
+uv run ns-render --help
 ```
 
 ### Generate Point Cloud
@@ -215,7 +215,7 @@ While NeRF models are not designed to generate point clouds, it is still possibl
 Alternatively you can use the CLI without the viewer. Learn about the export options by running
 
 ```bash
-ns-export pointcloud --help
+uv run ns-export pointcloud --help
 ```
 
 ## 4. Using Custom Data
@@ -245,7 +245,7 @@ Using an existing dataset is great, but likely you want to use your own data! We
 We provide other models than nerfacto, for example if you want to train the original nerf model, use the following command
 
 ```bash
-ns-train vanilla-nerf --data DATA_PATH
+uv run ns-train vanilla-nerf --data DATA_PATH
 ```
 
 For a full list of included models run `ns-train --help`.
@@ -255,7 +255,7 @@ For a full list of included models run `ns-train --help`.
 Each model contains many parameters that can be changed, too many to list here. Use the `--help` command to see the full list of configuration options.
 
 ```bash
-ns-train nerfacto --help
+uv run ns-train nerfacto --help
 ```
 
 ### Tensorboard / WandB / Viewer
