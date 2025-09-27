@@ -13,6 +13,29 @@ VIDEO_BASENAME=$(basename "$VIDEO_FILE")
 
 PIX_FMT=$(ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt -of default=noprint_wrappers=1:nokey=1 "$VIDEO_FILE")
 BITS_PER_SAMPLE=$(ffprobe -v error -select_streams v:0 -show_entries stream=bits_per_raw_sample -of default=noprint_wrappers=1:nokey=1 "$VIDEO_FILE")
+ROTATE_TAG=$(ffprobe -v error -select_streams v:0 -show_entries stream_tags=rotate -of default=noprint_wrappers=1:nokey=1 "$VIDEO_FILE")
+ROTATE_SIDE_DATA=$(ffprobe -v error -select_streams v:0 -show_entries stream_side_data=rotation -of default=noprint_wrappers=1:nokey=1 "$VIDEO_FILE" | sed -n 's/^rotation=//p' | head -1)
+
+ROTATE_DEG=0
+if [[ "$ROTATE_TAG" =~ ^-?[0-9]+$ ]]; then
+    ROTATE_DEG=$ROTATE_TAG
+elif [[ "$ROTATE_SIDE_DATA" =~ ^-?[0-9]+$ ]]; then
+    ROTATE_DEG=$ROTATE_SIDE_DATA
+fi
+
+# When shooting video on an iPhone, the camera tilt may be stored in the metadata rather than in the video itself.
+ROTATE_DEG=$(( (ROTATE_DEG % 360 + 360) % 360 ))
+case $ROTATE_DEG in
+    0) ROTATE_FILTER="" ;;
+    90) ROTATE_FILTER="transpose=1" ;;
+    180) ROTATE_FILTER="transpose=1,transpose=1" ;;
+    270) ROTATE_FILTER="transpose=2" ;;
+    *)
+        echo "Warning: Unsupported rotation metadata detected (${ROTATE_DEG} deg). Skipping manual correction."
+        ROTATE_FILTER=""
+        ROTATE_DEG=0
+        ;;
+esac
 
 NEED_CONVERT=0
 if [[ "$BITS_PER_SAMPLE" =~ ^[0-9]+$ ]] && [ "$BITS_PER_SAMPLE" -gt 8 ]; then
@@ -21,20 +44,38 @@ elif [[ "$PIX_FMT" == *10* || "$PIX_FMT" == *12* || "$PIX_FMT" == *14* || "$PIX_
     NEED_CONVERT=1
 fi
 
+if [ $ROTATE_DEG -ne 0 ]; then
+    NEED_CONVERT=1
+fi
+
 VIDEO_FOR_PROCESS="$VIDEO_FILE"
 
 if [ "$NEED_CONVERT" -eq 1 ]; then
     VIDEO_STEM=${VIDEO_BASENAME%.*}
-    VIDEO_8BIT="${VIDEO_DIR}/${VIDEO_STEM}_8bit.mp4"
+    VIDEO_PROCESSED="${VIDEO_DIR}/${VIDEO_STEM}_processed.mp4"
 
-    if [ ! -f "$VIDEO_8BIT" ]; then
-        echo "Detected high bit-depth input ($PIX_FMT, ${BITS_PER_SAMPLE:-unknown} bits). Converting to 8bit: $VIDEO_8BIT"
-        ffmpeg -y -i "$VIDEO_FILE" -pix_fmt yuv420p "$VIDEO_8BIT"
+    if [ ! -f "$VIDEO_PROCESSED" ]; then
+        echo "Preparing intermediary video: $VIDEO_PROCESSED"
+        echo "  pix_fmt: ${PIX_FMT:-unknown}, bits: ${BITS_PER_SAMPLE:-unknown}, rotate: ${ROTATE_DEG}"
+        FFMPEG_ARGS=(ffmpeg -y)
+        if [ -n "$ROTATE_FILTER" ]; then
+            FFMPEG_ARGS+=(-noautorotate)
+        fi
+        FFMPEG_ARGS+=(-i "$VIDEO_FILE")
+        if [ -n "$ROTATE_FILTER" ]; then
+            FFMPEG_ARGS+=(-vf "$ROTATE_FILTER")
+        fi
+        FFMPEG_ARGS+=(-pix_fmt yuv420p -c:a copy)
+        if [ -n "$ROTATE_FILTER" ]; then
+            FFMPEG_ARGS+=(-metadata:s:v:0 rotate=0)
+        fi
+        FFMPEG_ARGS+=("$VIDEO_PROCESSED")
+        "${FFMPEG_ARGS[@]}"
     else
-        echo "Using existing 8bit video: $VIDEO_8BIT"
+        echo "Using existing processed video: $VIDEO_PROCESSED"
     fi
 
-    VIDEO_FOR_PROCESS="$VIDEO_8BIT"
+    VIDEO_FOR_PROCESS="$VIDEO_PROCESSED"
 else
     echo "Input appears to be 8bit already (pix_fmt: ${PIX_FMT:-unknown}). Conversion skipped."
 fi
