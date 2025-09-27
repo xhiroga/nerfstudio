@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -ex
 
 VIDEO_FILE="$1"
 if [ ! -f "$VIDEO_FILE" ]; then
@@ -80,16 +80,16 @@ else
     echo "Input appears to be 8bit already (pix_fmt: ${PIX_FMT:-unknown}). Conversion skipped."
 fi
 
-DATA_DIR="data/${VIDEO_BASENAME}"
+PEOCESSED_DIR="processed/${VIDEO_BASENAME}"
 OUTPUT_DIR="outputs/${VIDEO_BASENAME}"
 EXPORT_DIR="exports/${VIDEO_BASENAME}"
 
 uv run ns-process-data video \
     --data "$VIDEO_FOR_PROCESS" \
-    --output-dir "$DATA_DIR"
+    --output-dir "$PEOCESSED_DIR"
 
 uv run ns-train "splatfacto" \
-    --data "$DATA_DIR" \
+    --data "$PEOCESSED_DIR" \
     --output-dir "$OUTPUT_DIR" \
     --max-num-iterations 30000 \
     --vis viewer
